@@ -250,7 +250,7 @@ def plot_crash_probabilities_grid(results, market_sentiment_data, target_col='fu
 
 def plot_crash_probabilities_grid_CNN(results, market_sentiment_data, window_size=30):
     num_models = len(results)
-    cols = 3
+    cols = 2
     rows = (num_models + 1) // cols
 
     fig, axes = plt.subplots(rows, cols, figsize=(15, rows*3), sharex=False)
@@ -264,7 +264,7 @@ def plot_crash_probabilities_grid_CNN(results, market_sentiment_data, window_siz
         df_model = market_sentiment_data.dropna(subset=features + ['future_crash']).copy()
         X_raw = df_model[features].fillna(0)
         y_raw = df_model['future_crash']
-        X_seq, y_seq = create_sequences(X_raw, y_raw, window=window_size)
+        X_seq, y_seq, _ = create_sequences(X_raw, y_raw, window=window_size)
 
         crash_prob = model.predict(X_seq).flatten()
         df_plot = df_model.iloc[window_size:].copy()
