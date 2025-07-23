@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-from sklearn.metrics import roc_curve, auc, confusion_matrix, precision_recall_curve
+from sklearn.metrics import roc_curve, auc, confusion_matrix, precision_recall_curve, recall_score, accuracy_score, mean_squared_error
 import tensorflow as tf
 
 def create_sequences(X, y, window=30):
@@ -370,3 +370,26 @@ def dynamic_threshold_calculate(y_test, y_proba):
     print(f"Best threshold: {best_thresh:.2f}, F1: {f1_scores[best_idx]:.2f}")
 
     return best_thresh
+
+def evaluate_model(y_true, y_pred, y_proba):
+    cm = confusion_matrix(y_true, y_pred)
+    tn, fp, fn, tp = cm.ravel()
+
+    # Metrics
+    sensitivity = recall_score(y_true, y_pred)  # True positive rate
+    specificity = tn / (tn + fp)               # True negative rate
+    misclassification_error = 1 - accuracy_score(y_true, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_true, y_proba))
+
+    # Print results
+    print(f"Sensitivity (Recall): {sensitivity:.4f}")
+    print(f"Specificity: {specificity:.4f}")
+    print(f"Misclassification Error: {misclassification_error:.4f}")
+    print(f"RMSE: {rmse:.4f}")
+
+    return {
+        "Sensitivity": sensitivity,
+        "Specificity": specificity,
+        "Misclassification Error": misclassification_error,
+        "RMSE": rmse
+    }
