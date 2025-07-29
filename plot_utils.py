@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-from sklearn.metrics import roc_curve, auc, confusion_matrix, precision_recall_curve, recall_score, accuracy_score, mean_squared_error
+from sklearn.metrics import roc_curve, auc, confusion_matrix, precision_recall_curve, recall_score, accuracy_score, mean_squared_error, ConfusionMatrixDisplay, classification_report
 import tensorflow as tf
 
 def create_sequences(X, y, window=30):
@@ -27,7 +27,7 @@ def plot_feature_importances(model, X):
 
 def plot_feature_importances_grid(results):
     num_models = len(results)
-    cols = 3
+    cols = 2
     rows = int(np.ceil(num_models / cols))
 
     fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 3))
@@ -63,7 +63,7 @@ def plot_feature_importances_grid(results):
 
 def plot_logit_coefficients_grid(results):
     num_models = len(results)
-    cols = 3
+    cols = 2
     rows = int(np.ceil(num_models / cols))
 
     fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 3))
@@ -109,7 +109,7 @@ def plot_roc_curve(y_true, y_scores):
 def plot_roc_curves_grid(results, X_test_dict, y_test_dict):
     from sklearn.metrics import roc_curve, auc
     num_models = len(results)
-    cols = 3
+    cols = 2
     rows = int(np.ceil(num_models / cols))
 
     fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 3))
@@ -145,7 +145,7 @@ def plot_roc_curves_grid(results, X_test_dict, y_test_dict):
 def plot_CNN_roc_curves_grid(results, X_test_dict, y_test_dict):
     from sklearn.metrics import roc_curve, auc
     num_models = len(results)
-    cols = 3
+    cols = 2
     rows = int(np.ceil(num_models / cols))
 
     fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 3))
@@ -192,6 +192,30 @@ def plot_confusion_matrix(y_true, y_pred):
     plt.ylabel('Actual')
     plt.title('Confusion Matrix')
     plt.show()
+    
+def plot_confusion_matrix_grid(conf_matrices, titles, ncols=2):
+    n = len(conf_matrices)
+    nrows = int(np.ceil(n / ncols))
+
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(5 * ncols, 4 * nrows))
+
+    # Make sure axes is always 2D array
+    axes = np.atleast_2d(axes)
+
+    for i in range(nrows * ncols):
+        row = i // ncols
+        col = i % ncols
+        ax = axes[row, col]
+
+        if i < n:
+            disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrices[i], display_labels=[0, 1])
+            disp.plot(ax=ax, values_format='d')
+            ax.set_title(titles[i])
+        else:
+            ax.axis('off')  # Hide unused subplot
+
+    plt.tight_layout()
+    plt.show()
 
 def plot_crash_probabilities(df, target_col='crash_probability'):
     # plt.figure(figsize=(10, 5))
@@ -208,7 +232,7 @@ def plot_crash_probabilities(df, target_col='crash_probability'):
 
 def plot_crash_probabilities_grid(results, market_sentiment_data, target_col='future_crash'):
     num_models = len(results)
-    cols = 3
+    cols = 2
     rows = int(np.ceil(num_models / cols))
 
     fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 3))
@@ -248,7 +272,7 @@ def plot_crash_probabilities_grid(results, market_sentiment_data, target_col='fu
     plt.tight_layout()
     plt.show()
 
-def plot_crash_probabilities_grid_CNN(results, market_sentiment_data, window_size=30):
+def plot_crash_probabilities_grid_CNN(results, market_sentiment_data_with_lags, lag=10, window_size=30):
     num_models = len(results)
     cols = 2
     rows = (num_models + 1) // cols
@@ -261,7 +285,7 @@ def plot_crash_probabilities_grid_CNN(results, market_sentiment_data, window_siz
         features = result['features']
 
         # Recreate full sequence to get full-length predictions
-        df_model = market_sentiment_data.dropna(subset=features + ['future_crash']).copy()
+        df_model = market_sentiment_data_with_lags.dropna(subset=features + ['future_crash']).copy()
         X_raw = df_model[features].fillna(0)
         y_raw = df_model['future_crash']
         X_seq, y_seq, _ = create_sequences(X_raw, y_raw, window=window_size)
@@ -317,7 +341,7 @@ def compute_integrated_gradients(model, input_sequence, baseline=None, steps=50)
 
 def plot_ig_feature_attributions_grid(cnn_results, X_test_dict, window_size):
     num_models = len(cnn_results)
-    cols = 3
+    cols = 2
     rows = int(np.ceil(num_models / cols))
 
     fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 3))
