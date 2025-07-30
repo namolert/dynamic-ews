@@ -272,7 +272,7 @@ def plot_crash_probabilities_grid(results, market_sentiment_data, target_col='fu
     plt.tight_layout()
     plt.show()
 
-def plot_crash_probabilities_grid_CNN(results, market_sentiment_data_with_lags, lag=10, window_size=30):
+def plot_crash_probabilities_grid_CNN(results):
     num_models = len(results)
     cols = 2
     rows = (num_models + 1) // cols
@@ -281,21 +281,21 @@ def plot_crash_probabilities_grid_CNN(results, market_sentiment_data_with_lags, 
     axes = axes.flatten()
 
     for idx, (n, result) in enumerate(sorted(results.items())):
-        model = result['model']
-        features = result['features']
-
-        # Recreate full sequence to get full-length predictions
-        df_model = market_sentiment_data_with_lags.dropna(subset=features + ['future_crash']).copy()
-        X_raw = df_model[features].fillna(0)
-        y_raw = df_model['future_crash']
-        X_seq, y_seq, _ = create_sequences(X_raw, y_raw, window=window_size)
-
-        crash_prob = model.predict(X_seq).flatten()
-        df_plot = df_model.iloc[window_size:].copy()
-        df_plot['crash_probability'] = crash_prob
+        y_prob = result['y_prob']
+        y_test_seq = result['y_test']
+        date_seq = result['date_seq']
+        
+        df_plot = pd.DataFrame({
+            'date': date_seq,
+            'crash_probability': y_prob,
+            'actual_crash': y_test_seq,
+        })
+        
+        df_plot = df_plot.sort_values('date')
 
         ax = axes[idx]
-        ax.plot(df_plot['Date'], df_plot['crash_probability'], color='red', label='Crash Probability')
+        ax.plot(df_plot['date'], df_plot['crash_probability'], color='red', label='Crash Probability')
+        # ax.plot(df_plot['date'], df_plot['actual_crash'], color='blue', label='Crash Probability')
         ax.axhline(0.5, linestyle='--', color='gray', label='Threshold = 0.5')
         ax.set_title(f'{n}-Day Crash Probability')
         ax.set_xlabel('Date')
