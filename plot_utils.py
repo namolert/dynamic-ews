@@ -4,6 +4,8 @@ import seaborn as sns
 import pandas as pd
 from sklearn.metrics import roc_curve, auc, confusion_matrix, precision_recall_curve, recall_score, accuracy_score, mean_squared_error, ConfusionMatrixDisplay, classification_report
 import tensorflow as tf
+import matplotlib.colors as mcolors
+import matplotlib.dates as mdates
 
 def create_sequences(X, y, window=30):
     Xs, ys, indices = [], [], []
@@ -233,37 +235,32 @@ def plot_crash_probabilities(df, target_col='crash_probability'):
 def plot_crash_probabilities_grid(results, market_sentiment_data, target_col='future_crash'):
     num_models = len(results)
     cols = 2
-    rows = int(np.ceil(num_models / cols))
+    rows = (num_models + 1) // cols
 
-    fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 3))
+    fig, axes = plt.subplots(rows, cols, figsize=(15, rows*3), sharex=False)
     axes = axes.flatten()
 
     for idx, (n, result) in enumerate(sorted(results.items())):
-        model = result['model']
+        y_prob = result['y_prob']
+        y_test_seq = result['y_test'].reset_index(drop=True)
+        date_seq = result['date_seq'].reset_index(drop=True)
 
-        # Prepare features
-        feature_cols = [
-            f'{n}_day_market_volatility',
-            f'{n}_day_sentiment_volatility',
-            f'VaR_{n}',
-            f'ES_{n}',
-        ]
-
-        df_model = market_sentiment_data.dropna(subset=feature_cols + [target_col]).copy()
-
-        X_all = df_model[feature_cols]
-        y_all = df_model[target_col]
-        model.fit(X_all, y_all)
-        df_model['crash_probability'] = model.predict_proba(X_all)[:, 1]
+        df_plot = pd.DataFrame({
+            'date': date_seq,
+            'crash_probability': y_prob,
+            'actual_crash': y_test_seq,
+        })
+        
+        df_plot = df_plot.sort_values('date')
 
         ax = axes[idx]
-        ax.plot(df_model['Date'], df_model['crash_probability'], label='Crash Probability', color='red')
+        ax.plot(df_plot['date'], df_plot['crash_probability'], label='Crash Probability', color='red')
         ax.axhline(0.5, linestyle='--', color='gray', label='Threshold = 0.5')
-        ax.set_title(f'{n}-Day Crash Probability Over Time')
+        ax.set_title(f'{n}-Day Crash Probability')
         ax.set_xlabel('Date')
         ax.set_ylabel('Predicted Probability')
-        ax.legend()
-        ax.grid()
+        ax.grid(True)
+        ax.legend(loc='lower right')
 
     # Hide any unused subplots
     for i in range(idx + 1, len(axes)):
@@ -271,6 +268,7 @@ def plot_crash_probabilities_grid(results, market_sentiment_data, target_col='fu
 
     plt.tight_layout()
     plt.show()
+
 
 def plot_crash_probabilities_grid_CNN(results):
     num_models = len(results)
@@ -301,7 +299,7 @@ def plot_crash_probabilities_grid_CNN(results):
         ax.set_xlabel('Date')
         ax.set_ylabel('Probability')
         ax.grid(True)
-        ax.legend()
+        ax.legend(loc='lower right')
 
     # Remove any unused subplots
     for j in range(idx + 1, len(axes)):
@@ -310,7 +308,7 @@ def plot_crash_probabilities_grid_CNN(results):
     plt.tight_layout()
     plt.show()
 
-def compute_integrated_gradients(model, input_sequence, baseline=None, steps=50):
+def compute_integrated_gradients(model, input_sequence, baseline=None, steps=100):
     if baseline is None:
         baseline = np.zeros_like(input_sequence)
 
@@ -370,7 +368,7 @@ def plot_ig_feature_attributions_grid(cnn_results, X_test_dict, window_size):
             y='Feature',
             data=importance_df,
             ax=axes[idx],
-            palette='viridis'
+            palette='coolwarm'
         )
         axes[idx].set_title(f'{n}-Day IG Attributions')
         axes[idx].set_xlabel('')
@@ -417,3 +415,225 @@ def evaluate_model(y_true, y_pred, y_proba):
         "Misclassification Error": misclassification_error,
         "RMSE": rmse
     }
+
+def plot_roc_and_crash_probabilities_grid(results, X_test_dict, y_test_dict):
+    from sklearn.metrics import roc_curve, auc
+
+    num_models = len(results)
+    cols = 4   # 2 columns for ROC, 2 for crash probability
+    rows = int(np.ceil(num_models / 2))  # each model occupies 2 plots side by side
+
+    fig, axes = plt.subplots(rows, cols, figsize=(20, rows * 3))
+    axes = axes.flatten()
+
+    for idx, (n, result) in enumerate(sorted(results.items())):
+
+        # ---- ROC curve ----
+        model = result['model']
+        X_test = X_test_dict[n]
+        y_test = y_test_dict[n]
+
+        y_proba = model.predict_proba(X_test)[:, 1]
+        fpr, tpr, _ = roc_curve(y_test, y_proba)
+        roc_auc = auc(fpr, tpr)
+
+        ax_roc = axes[idx*2]
+        ax_roc.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.2f}')
+        ax_roc.plot([0, 1], [0, 1], color='red', linestyle='--')
+        ax_roc.set_xlim([0.0, 1.0])
+        ax_roc.set_ylim([0.0, 1.05])
+        ax_roc.set_xlabel('False Positive Rate')
+        ax_roc.set_ylabel('True Positive Rate')
+        ax_roc.set_title(f'{n}-Day ROC Curve')
+        ax_roc.legend(loc='lower right')
+        ax_roc.grid()
+
+        # ---- Crash Probabilities ----
+        y_prob = result['y_prob']
+        y_test_seq = result['y_test'].reset_index(drop=True)
+        date_seq = result['date_seq'].reset_index(drop=True)
+
+        df_plot = pd.DataFrame({
+            'date': date_seq,
+            'crash_probability': y_prob,
+            'actual_crash': y_test_seq,
+        }).sort_values('date')
+
+        ax_crash = axes[idx*2 + 1]
+        ax_crash.plot(df_plot['date'], df_plot['crash_probability'], label='Crash Probability', color='red')
+        ax_crash.axhline(0.5, linestyle='--', color='gray', label='Threshold = 0.5')
+        ax_crash.set_title(f'{n}-Day Crash Probability')
+        ax_crash.set_xlabel('Date')
+        ax_crash.set_ylabel('Predicted Probability')
+        ax_crash.grid(True)
+        ax_crash.legend(loc='lower right')
+
+        
+        # Format x-axis ticks for dates
+        ax_crash.xaxis.set_major_locator(mdates.MonthLocator(interval=3))  # major ticks every 3 months
+        ax_crash.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))  # format as YYYY-MM
+        plt.setp(ax_crash.get_xticklabels(), rotation=45, ha='right')  # rotate labels
+
+    plt.tight_layout()
+    plt.show()
+
+def plot_CNN_roc_and_crash_probabilities(results, X_test_dict, y_test_dict):
+    from sklearn.metrics import roc_curve, auc
+    
+    num_models = len(results)
+    cols = 4   # 2 columns for ROC, 2 for crash probability
+    rows = int(np.ceil(num_models / 2))  # each model occupies 2 plots side by side
+
+    fig, axes = plt.subplots(rows, cols, figsize=(20, rows * 3))
+    axes = axes.flatten()
+
+    for idx, (n, result) in enumerate(sorted(results.items())):
+        # --- ROC Curve ---
+        model = result['model']
+        X_test = X_test_dict[n]
+        y_test = y_test_dict[n]
+
+        y_proba = model.predict(X_test).flatten()
+
+        if len(np.unique(y_test)) < 2:
+            print(f"Skipping ROC for {n}-Day model (only one class in test set)")
+            continue
+
+        fpr, tpr, _ = roc_curve(y_test, y_proba)
+        roc_auc = auc(fpr, tpr)
+
+        ax_roc = axes[idx * 2]
+        ax_roc.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.2f}')
+        ax_roc.plot([0, 1], [0, 1], color='red', linestyle='--')
+        ax_roc.set_xlim([0.0, 1.0])
+        ax_roc.set_ylim([0.0, 1.05])
+        ax_roc.set_xlabel('False Positive Rate')
+        ax_roc.set_ylabel('True Positive Rate')
+        ax_roc.set_title(f'{n}-Day ROC Curve')
+        ax_roc.legend(loc='lower right')
+        ax_roc.grid()
+
+        # --- Crash Probability ---
+        y_prob = result['y_prob']
+        y_test_seq = result['y_test']
+        date_seq = result['date_seq']
+
+        df_plot = pd.DataFrame({
+            'date': date_seq,
+            'crash_probability': y_prob,
+            'actual_crash': y_test_seq,
+        }).sort_values('date')
+
+        ax_prob = axes[idx * 2 + 1]
+        ax_prob.plot(df_plot['date'], df_plot['crash_probability'], color='red', label='Crash Probability')
+        ax_prob.axhline(0.5, linestyle='--', color='gray', label='Threshold = 0.5')
+        ax_prob.set_title(f'{n}-Day Crash Probability')
+        ax_prob.set_xlabel('Date')
+        ax_prob.set_ylabel('Probability')
+        ax_prob.grid(True)
+        ax_prob.legend(loc='lower right')
+
+        # Format x-axis ticks for dates
+        ax_prob.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+        ax_prob.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+        plt.setp(ax_prob.get_xticklabels(), rotation=45, ha='right')
+
+
+    # Remove unused subplots
+    for j in range(idx * 2 + 2, len(axes)):
+        fig.delaxes(axes[j])
+
+    plt.tight_layout()
+    plt.show()
+
+def plot_CNN_roc_and_crash_prob_for_one(model_result, X_test, y_test):
+    from sklearn.metrics import roc_curve, auc
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # --- ROC Curve ---
+    y_proba = model_result['model'].predict(X_test).flatten()
+
+    if len(np.unique(y_test)) < 2:
+        print("Skipping ROC (only one class in test set)")
+    else:
+        fpr, tpr, _ = roc_curve(y_test, y_proba)
+        roc_auc = auc(fpr, tpr)
+
+        axes[0].plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.2f}')
+        axes[0].plot([0, 1], [0, 1], color='red', linestyle='--')
+        axes[0].set_xlim([0.0, 1.0])
+        axes[0].set_ylim([0.0, 1.05])
+        axes[0].set_xlabel('False Positive Rate')
+        axes[0].set_ylabel('True Positive Rate')
+        axes[0].set_title('ROC Curve')
+        axes[0].legend(loc='lower right')
+        axes[0].grid()
+
+    # --- Crash Probability ---
+    df_plot = pd.DataFrame({
+        'date': model_result['date_seq'],
+        'crash_probability': model_result['y_prob'],
+        'actual_crash': model_result['y_test']
+    }).sort_values('date')
+
+    axes[1].plot(df_plot['date'], df_plot['crash_probability'], color='red', label='Crash Probability')
+    axes[1].axhline(0.5, linestyle='--', color='gray', label='Threshold = 0.5')
+    axes[1].set_title('Crash Probability Over Time')
+    axes[1].set_xlabel('Date')
+    axes[1].set_ylabel('Probability')
+    axes[1].grid(True)
+    axes[1].legend(loc='lower right')
+
+    axes[1].xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+    axes[1].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    plt.setp(axes[1].get_xticklabels(), rotation=45, ha='right')
+
+    plt.tight_layout()
+    plt.show()
+
+def plot_logit_roc_and_crash_prob_for_one(model_result, X_test, y_test):
+    from sklearn.metrics import roc_curve, auc
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # --- ROC Curve ---
+    y_proba = model_result['model'].predict_proba(X_test)[:, 1]
+
+    if len(np.unique(y_test)) < 2:
+        print("Skipping ROC (only one class in test set)")
+    else:
+        fpr, tpr, _ = roc_curve(y_test, y_proba)
+        roc_auc = auc(fpr, tpr)
+
+        axes[0].plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.2f}')
+        axes[0].plot([0, 1], [0, 1], color='red', linestyle='--')
+        axes[0].set_xlim([0.0, 1.0])
+        axes[0].set_ylim([0.0, 1.05])
+        axes[0].set_xlabel('False Positive Rate')
+        axes[0].set_ylabel('True Positive Rate')
+        axes[0].set_title('ROC Curve')
+        axes[0].legend(loc='lower right')
+        axes[0].grid()
+
+    # --- Crash Probability ---
+    df_plot = pd.DataFrame({
+        'date': model_result['date_seq'],
+        'crash_probability': y_proba,
+        'actual_crash': y_test
+    }).sort_values('date')
+
+    axes[1].plot(df_plot['date'], df_plot['crash_probability'], color='red', label='Crash Probability')
+    axes[1].axhline(0.5, linestyle='--', color='gray', label='Threshold = 0.5')
+    axes[1].set_title('Crash Probability Over Time')
+    axes[1].set_xlabel('Date')
+    axes[1].set_ylabel('Probability')
+    axes[1].grid(True)
+    axes[1].legend(loc='lower right')
+
+    axes[1].xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+    axes[1].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    plt.setp(axes[1].get_xticklabels(), rotation=45, ha='right')
+
+    plt.tight_layout()
+    plt.show()
