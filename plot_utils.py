@@ -620,7 +620,7 @@ def plot_logit_roc_and_crash_prob_for_one(model_result, X_test, y_test):
     df_plot = pd.DataFrame({
         'date': model_result['date_seq'],
         'crash_probability': y_proba,
-        'actual_crash': y_test
+        'actual_crash': y_test.reset_index(drop=True)
     }).sort_values('date')
 
     axes[1].plot(df_plot['date'], df_plot['crash_probability'], color='red', label='Crash Probability')
