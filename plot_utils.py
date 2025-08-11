@@ -97,7 +97,7 @@ def plot_roc_curve(y_true, y_scores):
     roc_auc = auc(fpr, tpr)
 
     # plt.figure(figsize=(8, 6))
-    plt.plot(fpr, tpr, color='blue', label=f'ROC curve (area = {roc_auc:.2f})')
+    plt.plot(fpr, tpr, color='blue', label=f'ROC curve (area = {roc_auc:.4f})')
     plt.plot([0, 1], [0, 1], color='red', linestyle='--')
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
@@ -127,7 +127,7 @@ def plot_roc_curves_grid(results, X_test_dict, y_test_dict):
         roc_auc = auc(fpr, tpr)
 
         ax = axes[idx]
-        ax.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.2f}')
+        ax.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.4f}')
         ax.plot([0, 1], [0, 1], color='red', linestyle='--')
         ax.set_xlim([0.0, 1.0])
         ax.set_ylim([0.0, 1.05])
@@ -169,7 +169,7 @@ def plot_CNN_roc_curves_grid(results, X_test_dict, y_test_dict):
         roc_auc = auc(fpr, tpr)
 
         ax = axes[idx]
-        ax.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.2f}')
+        ax.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.4f}')
         ax.plot([0, 1], [0, 1], color='red', linestyle='--')
         ax.set_xlim([0.0, 1.0])
         ax.set_ylim([0.0, 1.05])
@@ -438,7 +438,7 @@ def plot_roc_and_crash_probabilities_grid(results, X_test_dict, y_test_dict):
         roc_auc = auc(fpr, tpr)
 
         ax_roc = axes[idx*2]
-        ax_roc.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.2f}')
+        ax_roc.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.4f}')
         ax_roc.plot([0, 1], [0, 1], color='red', linestyle='--')
         ax_roc.set_xlim([0.0, 1.0])
         ax_roc.set_ylim([0.0, 1.05])
@@ -503,7 +503,7 @@ def plot_CNN_roc_and_crash_probabilities(results, X_test_dict, y_test_dict):
         roc_auc = auc(fpr, tpr)
 
         ax_roc = axes[idx * 2]
-        ax_roc.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.2f}')
+        ax_roc.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.4f}')
         ax_roc.plot([0, 1], [0, 1], color='red', linestyle='--')
         ax_roc.set_xlim([0.0, 1.0])
         ax_roc.set_ylim([0.0, 1.05])
@@ -560,7 +560,7 @@ def plot_CNN_roc_and_crash_prob_for_one(model_result, X_test, y_test):
         fpr, tpr, _ = roc_curve(y_test, y_proba)
         roc_auc = auc(fpr, tpr)
 
-        axes[0].plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.2f}')
+        axes[0].plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.4f}')
         axes[0].plot([0, 1], [0, 1], color='red', linestyle='--')
         axes[0].set_xlim([0.0, 1.0])
         axes[0].set_ylim([0.0, 1.05])
@@ -606,7 +606,7 @@ def plot_logit_roc_and_crash_prob_for_one(model_result, X_test, y_test):
         fpr, tpr, _ = roc_curve(y_test, y_proba)
         roc_auc = auc(fpr, tpr)
 
-        axes[0].plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.2f}')
+        axes[0].plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.4f}')
         axes[0].plot([0, 1], [0, 1], color='red', linestyle='--')
         axes[0].set_xlim([0.0, 1.0])
         axes[0].set_ylim([0.0, 1.05])
