@@ -32,7 +32,7 @@ def plot_feature_importances_grid(results):
     cols = 2
     rows = int(np.ceil(num_models / cols))
 
-    fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 3))
+    fig, axes = plt.subplots(rows, cols, figsize=(12, rows * 3))
     axes = axes.flatten()
 
     for idx, (n, result) in enumerate(sorted(results.items())):
@@ -68,7 +68,7 @@ def plot_logit_coefficients_grid(results):
     cols = 2
     rows = int(np.ceil(num_models / cols))
 
-    fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 3))
+    fig, axes = plt.subplots(rows, cols, figsize=(12, rows * 3))
     axes = axes.flatten()
 
     for idx, (n, result) in enumerate(sorted(results.items())):
@@ -342,7 +342,7 @@ def plot_ig_feature_attributions_grid(cnn_results, X_test_dict, window_size):
     cols = 2
     rows = int(np.ceil(num_models / cols))
 
-    fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 3))
+    fig, axes = plt.subplots(rows, cols, figsize=(12, rows * 3))
     axes = axes.flatten()
 
     for idx, (n, result) in enumerate(sorted(cnn_results.items())):
@@ -357,11 +357,14 @@ def plot_ig_feature_attributions_grid(cnn_results, X_test_dict, window_size):
         avg_attributions = np.mean(attributions, axis=0)
 
         # Create DataFrame for plotting
-        importance_df = pd.DataFrame({
-            'Feature': feature_names,
-            'Attribution': avg_attributions
-        }).sort_values(by='Attribution', ascending=False)
-
+        importance_df = (
+            pd.DataFrame({
+                'Feature': feature_names,
+                'Attribution': avg_attributions
+            })
+            .assign(AbsAttribution=lambda df: df['Attribution'].abs())
+            .sort_values(by='AbsAttribution', ascending=False)
+        )
         # Plot
         sns.barplot(
             x='Attribution',
@@ -420,13 +423,17 @@ def plot_roc_and_crash_probabilities_grid(results, X_test_dict, y_test_dict):
     from sklearn.metrics import roc_curve, auc
 
     num_models = len(results)
-    cols = 4   # 2 columns for ROC, 2 for crash probability
-    rows = int(np.ceil(num_models / 2))  # each model occupies 2 plots side by side
+    cols = 2   # 1 column for ROC, 1 column for crash probability
+    rows = num_models  # each model occupies one row (2 plots side by side)
 
-    fig, axes = plt.subplots(rows, cols, figsize=(20, rows * 3))
-    axes = axes.flatten()
+    fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 4))
+
+    # Handle case when rows=1 (axes is not 2D array)
+    if rows == 1:
+        axes = np.array([axes])
 
     for idx, (n, result) in enumerate(sorted(results.items())):
+        ax_roc, ax_crash = axes[idx]
 
         # ---- ROC curve ----
         model = result['model']
@@ -437,7 +444,6 @@ def plot_roc_and_crash_probabilities_grid(results, X_test_dict, y_test_dict):
         fpr, tpr, _ = roc_curve(y_test, y_proba)
         roc_auc = auc(fpr, tpr)
 
-        ax_roc = axes[idx*2]
         ax_roc.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.4f}')
         ax_roc.plot([0, 1], [0, 1], color='red', linestyle='--')
         ax_roc.set_xlim([0.0, 1.0])
@@ -459,8 +465,8 @@ def plot_roc_and_crash_probabilities_grid(results, X_test_dict, y_test_dict):
             'actual_crash': y_test_seq,
         }).sort_values('date')
 
-        ax_crash = axes[idx*2 + 1]
-        ax_crash.plot(df_plot['date'], df_plot['crash_probability'], label='Crash Probability', color='red')
+        ax_crash.plot(df_plot['date'], df_plot['crash_probability'], 
+                      label='Crash Probability', color='red')
         ax_crash.axhline(0.5, linestyle='--', color='gray', label='Threshold = 0.5')
         ax_crash.set_title(f'{n}-Day Crash Probability')
         ax_crash.set_xlabel('Date')
@@ -468,26 +474,31 @@ def plot_roc_and_crash_probabilities_grid(results, X_test_dict, y_test_dict):
         ax_crash.grid(True)
         ax_crash.legend(loc='lower right')
 
-        
         # Format x-axis ticks for dates
-        ax_crash.xaxis.set_major_locator(mdates.MonthLocator(interval=3))  # major ticks every 3 months
-        ax_crash.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))  # format as YYYY-MM
-        plt.setp(ax_crash.get_xticklabels(), rotation=45, ha='right')  # rotate labels
+        ax_crash.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+        ax_crash.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+        plt.setp(ax_crash.get_xticklabels(), rotation=45, ha='right')
 
     plt.tight_layout()
     plt.show()
 
+
 def plot_CNN_roc_and_crash_probabilities(results, X_test_dict, y_test_dict):
     from sklearn.metrics import roc_curve, auc
-    
-    num_models = len(results)
-    cols = 4   # 2 columns for ROC, 2 for crash probability
-    rows = int(np.ceil(num_models / 2))  # each model occupies 2 plots side by side
 
-    fig, axes = plt.subplots(rows, cols, figsize=(20, rows * 3))
-    axes = axes.flatten()
+    num_models = len(results)
+    cols = 2   # 1 col for ROC, 1 col for Crash Probability
+    rows = num_models  # one row per model
+
+    fig, axes = plt.subplots(rows, cols, figsize=(15, rows * 4))
+
+    # If only one model, make axes 2D for consistent indexing
+    if rows == 1:
+        axes = np.array([axes])
 
     for idx, (n, result) in enumerate(sorted(results.items())):
+        ax_roc, ax_prob = axes[idx]
+
         # --- ROC Curve ---
         model = result['model']
         X_test = X_test_dict[n]
@@ -497,21 +508,19 @@ def plot_CNN_roc_and_crash_probabilities(results, X_test_dict, y_test_dict):
 
         if len(np.unique(y_test)) < 2:
             print(f"Skipping ROC for {n}-Day model (only one class in test set)")
-            continue
+        else:
+            fpr, tpr, _ = roc_curve(y_test, y_proba)
+            roc_auc = auc(fpr, tpr)
 
-        fpr, tpr, _ = roc_curve(y_test, y_proba)
-        roc_auc = auc(fpr, tpr)
-
-        ax_roc = axes[idx * 2]
-        ax_roc.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.4f}')
-        ax_roc.plot([0, 1], [0, 1], color='red', linestyle='--')
-        ax_roc.set_xlim([0.0, 1.0])
-        ax_roc.set_ylim([0.0, 1.05])
-        ax_roc.set_xlabel('False Positive Rate')
-        ax_roc.set_ylabel('True Positive Rate')
-        ax_roc.set_title(f'{n}-Day ROC Curve')
-        ax_roc.legend(loc='lower right')
-        ax_roc.grid()
+            ax_roc.plot(fpr, tpr, color='blue', label=f'AUC = {roc_auc:.4f}')
+            ax_roc.plot([0, 1], [0, 1], color='red', linestyle='--')
+            ax_roc.set_xlim([0.0, 1.0])
+            ax_roc.set_ylim([0.0, 1.05])
+            ax_roc.set_xlabel('False Positive Rate')
+            ax_roc.set_ylabel('True Positive Rate')
+            ax_roc.set_title(f'{n}-Day ROC Curve')
+            ax_roc.legend(loc='lower right')
+            ax_roc.grid()
 
         # --- Crash Probability ---
         y_prob = result['y_prob']
@@ -524,7 +533,6 @@ def plot_CNN_roc_and_crash_probabilities(results, X_test_dict, y_test_dict):
             'actual_crash': y_test_seq,
         }).sort_values('date')
 
-        ax_prob = axes[idx * 2 + 1]
         ax_prob.plot(df_plot['date'], df_plot['crash_probability'], color='red', label='Crash Probability')
         ax_prob.axhline(0.5, linestyle='--', color='gray', label='Threshold = 0.5')
         ax_prob.set_title(f'{n}-Day Crash Probability')
@@ -538,13 +546,9 @@ def plot_CNN_roc_and_crash_probabilities(results, X_test_dict, y_test_dict):
         ax_prob.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
         plt.setp(ax_prob.get_xticklabels(), rotation=45, ha='right')
 
-
-    # Remove unused subplots
-    for j in range(idx * 2 + 2, len(axes)):
-        fig.delaxes(axes[j])
-
     plt.tight_layout()
     plt.show()
+
 
 def plot_CNN_roc_and_crash_prob_for_one(model_result, X_test, y_test):
     from sklearn.metrics import roc_curve, auc
