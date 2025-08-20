@@ -269,6 +269,27 @@ def plot_crash_probabilities_grid(results, market_sentiment_data, target_col='fu
     plt.tight_layout()
     plt.show()
 
+def plot_crash_probabilities_CNN(result):
+    y_prob = result['y_prob']
+    y_test_seq = result['y_test']
+    date_seq = result['date_seq']
+    
+    df_plot = pd.DataFrame({
+        'date': date_seq,
+        'crash_probability': y_prob,
+        'actual_crash': y_test_seq,
+    })
+
+    plt.plot(df_plot['date'], df_plot['crash_probability'], label='Crash Probability', color='red')
+    plt.axhline(0.5, linestyle='--', color='gray', label='Threshold = 0.5')  # Example threshold
+    plt.title("Early Warning Signal: Crash Probability Over Time")
+    plt.xlabel("Date")
+    plt.ylabel("Predicted Crash Probability")
+    plt.legend()
+    plt.tight_layout()
+    plt.grid()
+    plt.show()
+
 
 def plot_crash_probabilities_grid_CNN(results):
     num_models = len(results)
